@@ -4,8 +4,9 @@
 专门面向 AI Agent 及自动化流程设计的技术研究与个人文档归档工具：
 1. 【默认独立输出目录】：默认将提取结果保存至独立的 ./output/ 目录，避免污染工作区。
 2. 【精准标题与元数据提取】：向前扩展切片完整包含 #activity-name（真实大标题）、#js_name（公众号）、#js_author_name（作者）。
-3. 【中英文全语言支持】：支持中文、英文及代码混排文章，自动计算有效正文字符数。
-4. 【多标签页多文章消歧】：
+3. 【精准 URL 提取】：严格从 og:url、canonical link 或 msg_link 变量中提取当前文章真实链接，杜绝盲目匹配页面内推荐链接。
+4. 【中英文全语言支持】：支持中文、英文及代码混排文章，自动计算有效正文字符数。
+5. 【多标签页多文章消歧】：
    - 支持结构化列出全部打开的文章（--list / --json）
    - 支持按 URL、标题、公众号或正文关键词精准匹配（target）
    - 支持一键批量提取全部打开的文章（--all）
@@ -68,8 +69,8 @@ def scan_all_active_articles(filter_keyword=None):
     target_u8 = 'id="js_content"'.encode('utf-8')
     act_u16 = 'id="activity-name"'.encode('utf-16-le')
     act_u8 = 'id="activity-name"'.encode('utf-8')
-    img_u16 = 'id="img-content"'.encode('utf-16-le')
-    img_u8 = 'id="img-content"'.encode('utf-8')
+    img_u16 = 'id="img-content"'.encode('utf-8')
+    img_u16_le = 'id="img-content"'.encode('utf-16-le')
     div_u16 = '<div'.encode('utf-16-le')
     div_u8 = '<div'.encode('utf-8')
 
@@ -90,8 +91,8 @@ def scan_all_active_articles(filter_keyword=None):
                         raw = buffer.raw[:bytes_read.value]
                         
                         for enc, tag, act_tag, img_tag, d_tag in [
-                            ('utf-16-le', target_u16, act_u16, img_u16, div_u16),
-                            ('utf-8', target_u8, act_u8, img_u8, div_u8)
+                            ('utf-16-le', target_u16, act_u16, img_u16_le, div_u16),
+                            ('utf-8', target_u8, act_u8, img_u16, div_u8)
                         ]:
                             pos = 0
                             while True:
@@ -144,9 +145,19 @@ def scan_all_active_articles(filter_keyword=None):
                                                 raw_auth = "".join(tree.xpath('//*[@id="js_author_name"]//text()')).strip()
                                                 author = raw_auth if ('$' not in raw_auth and 'DATA' not in raw_auth) else ""
 
-                                                # 提取 URL
-                                                url_match = re.search(r'https?://mp\.weixin\.qq\.com/s[^\s\"\'\<\>\0\\]+', txt)
-                                                article_url = url_match.group(0) if url_match else ""
+                                                # 【精准提取 Canonical URL】：严格校验元数据，杜绝盲目匹配页面内的其他无关链接
+                                                article_url = ""
+                                                og_url = "".join(tree.xpath('//meta[@property="og:url"]/@content')).strip()
+                                                canonical_url = "".join(tree.xpath('//link[@rel="canonical"]/@href')).strip()
+                                                if og_url and og_url.startswith("http") and "$" not in og_url:
+                                                    article_url = og_url
+                                                elif canonical_url and canonical_url.startswith("http") and "$" not in canonical_url:
+                                                    article_url = canonical_url
+                                                else:
+                                                    # 从 JavaScript msg_link 变量提取
+                                                    msg_link_m = re.search(r'var\s+msg_link\s*=\s*["\'](https?://mp\.weixin\.qq\.com/s[^"\']+)["\']', txt)
+                                                    if msg_link_m:
+                                                        article_url = msg_link_m.group(1).replace("&amp;", "&")
                                                 
                                                 raw_candidates.append({
                                                     'pid': pid,
@@ -177,7 +188,7 @@ def scan_all_active_articles(filter_keyword=None):
 
     results = list(unique_articles.values())
 
-    # 关键词过滤
+    # 关键词 / 标题过滤
     if filter_keyword:
         kw = filter_keyword.strip()
         clean_kw = re.sub(r'https?://mp\.weixin\.qq\.com/s/?', '', kw).split('?')[0] if kw.startswith('http') else kw
@@ -185,19 +196,22 @@ def scan_all_active_articles(filter_keyword=None):
         for a in results:
             if (kw in a['title'] or kw in a['account'] or kw in a['author'] 
                 or (clean_kw and clean_kw in a['raw_html']) or kw in a['jc_text']):
+                # 如果用户传入了有效 URL，将该 URL 赋予当前文章
+                if kw.startswith("http"):
+                    a['url'] = kw
                 filtered.append(a)
         return filtered, None
 
     return results, None
 
 
-def convert_dom_to_markdown(article_info):
+def convert_dom_to_markdown(article_info, user_provided_url=None):
     """将 DOM 节点转换为结构化 Markdown"""
     jc_el = article_info['jc_element']
     title = article_info['title']
     account = article_info.get('account', '')
     author = article_info.get('author', '')
-    url = article_info.get('url', '')
+    url = user_provided_url or article_info.get('url', '')
 
     lines = []
     for el in jc_el.xpath('.//*[self::h1 or self::h2 or self::h3 or self::h4 or self::p or self::section or self::div or self::pre]'):
@@ -257,7 +271,7 @@ def main():
             pass
 
     parser = argparse.ArgumentParser(description="微信文章客户端内存 DOM 解析与 Markdown 离线整理工具")
-    parser.add_argument("target", nargs="?", default=None, help="目标文章标题、公众号或正文关键词（可选）")
+    parser.add_argument("target", nargs="?", default=None, help="目标文章标题、公众号、URL或正文关键词（可选）")
     parser.add_argument("--list", action="store_true", help="列出当前微信客户端内存中所有打开的文章")
     parser.add_argument("--all", action="store_true", help="批量解析并保存内存中打开的所有文章")
     parser.add_argument("--json", action="store_true", help="以 JSON 格式输出扫描结果（面向 Agent 结构化调用）")
@@ -300,8 +314,10 @@ def main():
     target_articles = articles if args.all else [articles[0]]
     os.makedirs(args.output_dir, exist_ok=True)
 
+    user_url = args.target if (args.target and args.target.startswith("http")) else None
+
     for a in target_articles:
-        title, md_content = convert_dom_to_markdown(a)
+        title, md_content = convert_dom_to_markdown(a, user_provided_url=user_url)
         safe_title = re.sub(r'[\\/:*?"<>|]', "_", title)
         out_path = os.path.join(args.output_dir, f"{safe_title}.md")
         with open(out_path, "w", encoding="utf-8") as f:
