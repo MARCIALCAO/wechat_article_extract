@@ -162,6 +162,7 @@ def scan_all_active_articles(filter_keyword=None):
                                                 raw_candidates.append({
                                                     'pid': pid,
                                                     'addr': hex(addr),
+                                                    'addr_int': addr,
                                                     'enc': enc,
                                                     'title': title,
                                                     'account': account,
@@ -177,7 +178,11 @@ def scan_all_active_articles(filter_keyword=None):
             addr += mbi.RegionSize
         kernel32.CloseHandle(h_proc)
 
-    # 以正文首段 120 字符去重聚合，保留最完整的一份
+    # 核心排序：进程启动时间倒序（最新进程在前） + 同进程内内存地址倒序（最高/最晚分配地址在前）
+    pid_order = {p: i for i, p in enumerate(pids)}
+    raw_candidates.sort(key=lambda x: (pid_order.get(x['pid'], 9999), -x['addr_int']))
+
+    # 以正文首段 120 字符去重聚合，优先保留最新渲染且内容最完整的一份
     unique_articles = {}
     for item in raw_candidates:
         fingerprint = re.sub(r'\s+', '', item['jc_text'][:120])
