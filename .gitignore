@@ -1,0 +1,36 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Output directory for extracted markdown articles
+output/
+
+# Temporary memory dumps & binary artifacts
+*.bin
+*.tmp
+*.log
+*.bak
+dump_*.txt
+article_mem_*.txt
+*.html
+!templates/*.html
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
