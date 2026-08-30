@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-微信文章（中英文/付费/防复制）确定性内存提取与结构化解析工具
-专门面向 AI Agent 及自动化流程设计：
+微信文章（中英文/多媒体排版）客户端内存 DOM 解析与 Markdown 离线整理工具
+专门面向 AI Agent 及自动化流程设计的技术研究与个人文档归档工具：
 1. 【默认独立输出目录】：默认将提取结果保存至独立的 ./output/ 目录，避免污染工作区。
 2. 【精准标题与元数据提取】：向前扩展切片完整包含 #activity-name（真实大标题）、#js_name（公众号）、#js_author_name（作者）。
 3. 【中英文全语言支持】：支持中文、英文及代码混排文章，自动计算有效正文字符数。
@@ -127,7 +127,7 @@ def scan_all_active_articles(filter_keyword=None):
                                             if valid_chars >= 30:
                                                 # 提取真实主标题
                                                 title_nodes = tree.xpath('//*[@id="activity-name"]//text()') or tree.xpath('//h1[contains(@class, "title")]//text()')
-                                                raw_title = "".join(title_nodes).strip().replace("已付费", "")
+                                                raw_title = "".join(title_nodes).strip()
                                                 
                                                 title = ""
                                                 if raw_title and '$' not in raw_title and 'malicious_title' not in raw_title:
@@ -177,7 +177,7 @@ def scan_all_active_articles(filter_keyword=None):
 
     results = list(unique_articles.values())
 
-    # 关键词 / URL / 标题过滤
+    # 关键词过滤
     if filter_keyword:
         kw = filter_keyword.strip()
         clean_kw = re.sub(r'https?://mp\.weixin\.qq\.com/s/?', '', kw).split('?')[0] if kw.startswith('http') else kw
@@ -256,10 +256,10 @@ def main():
         except AttributeError:
             pass
 
-    parser = argparse.ArgumentParser(description="微信文章（中英文/付费/防复制）确定性内存提取工具")
-    parser.add_argument("target", nargs="?", default=None, help="目标文章 URL、标题或关键词（可选）")
+    parser = argparse.ArgumentParser(description="微信文章客户端内存 DOM 解析与 Markdown 离线整理工具")
+    parser.add_argument("target", nargs="?", default=None, help="目标文章标题、公众号或正文关键词（可选）")
     parser.add_argument("--list", action="store_true", help="列出当前微信客户端内存中所有打开的文章")
-    parser.add_argument("--all", action="store_true", help="批量提取并保存内存中打开的所有文章")
+    parser.add_argument("--all", action="store_true", help="批量解析并保存内存中打开的所有文章")
     parser.add_argument("--json", action="store_true", help="以 JSON 格式输出扫描结果（面向 Agent 结构化调用）")
     parser.add_argument("--output-dir", default="output", help="输出 Markdown 文件目录（默认 ./output/ 文件夹）")
     args = parser.parse_args()

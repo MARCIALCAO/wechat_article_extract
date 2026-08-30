@@ -1,76 +1,88 @@
-# WeChat Article Extract (wechat_article_extract)
+# WeChat Article Extract.skill (wechat_article_extract)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.8+-3776AB.svg?style=flat&logo=python&logoColor=white" alt="Python Version" />
   <img src="https://img.shields.io/badge/Platform-Windows-0078D6.svg?style=flat&logo=windows&logoColor=white" alt="Platform" />
+  <img src="https://img.shields.io/badge/Topic-Memory_Forensics_%26_DOM_Analysis-blue.svg?style=flat" alt="Topic" />
   <img src="https://img.shields.io/badge/License-MIT-green.svg?style=flat" alt="License" />
   <img src="https://img.shields.io/badge/Agent-Skill_Ready-blueviolet.svg?style=flat" alt="Agent Skill" />
 </p>
 
-微信公众号文章（含**付费文章**、**禁止复制文章**、**中英文技术长文**）全文提取工具与 AI Agent Skill。
+本项目是一个基于**操作系统进程内存分析与 Chromium 渲染树解析**的微信公众号文章提取 Agent Skill。
 
-通过**客户端渲染层内存 DOM 直提（In-Memory DOM Extraction）**技术，实现**零配置、免抓包、免证书代理、秒级无损**导出为排版清晰的 Markdown 文件，默认自动输出到独立的 `./output/` 文件夹。
+通过探索 Windows 虚拟内存页面遍历（Win32 Memory Scanning）与 Blink 渲染引擎内存 DOM 结构化提取机制，实现将本地客户端正在渲染的文档内容无损解析为规范的 Markdown 格式，便于个人本地离线阅读、文献整理与学术研究。
 
 ---
 
-## 🌟 核心优势
+## 🔬 技术研究与探索方向
 
-| 传统抓包 / 爬虫方案 | 本工具（内存直提方案） |
+本项目主要围绕以下系统底层与编译/渲染原理展开技术探索：
+
+1. **Win32 进程虚拟内存管理**：
+   * 探索 `VirtualQueryEx` 遍历 `MEM_COMMIT` 提交状态内存页的技术原理。
+   * 研究 Windows 平台下跨进程内存安全读取（`ReadProcessMemory`）的权限与边界。
+2. **Chromium / Blink 渲染架构内存机制**：
+   * 分析多进程架构下 Renderer 进程中的 UTF-16 内存 DOM 驻留周期。
+   * 探索客户端预加载模板（Template Cache）与活动页面渲染树的特征识别算法。
+3. **HTML AST 结构化序列化**：
+   * 基于 `lxml` 实现对渲染 DOM 节点的深度优先遍历、样式清洗与 Markdown 规范重构。
+4. **AI Agent 标准作业接口（AgentSkills.io）**：
+   * 探索将本地系统级底层工具封装为符合开放协议的 Agent Skill，提供标准化结构化探测（JSON）与自主决策执行能力。
+
+---
+
+## 🌟 方案对比（技术实现维度）
+
+| 传统网络代理/网络抓包方案 | 本项目（内存 DOM 分析方案） |
 |---|---|
-| ❌ 需安装 CA 根证书、配置本地代理（易断网） | ✅ **零配置**：无需安装任何证书，不改动网络设置 |
-| ❌ 频繁遭遇 Cookie 过期、Token 失效与验证码 | ✅ **免鉴权**：直接从客户端渲染内存读取，免疫反爬 |
-| ❌ 易受公众号前端“禁止复制/文字防选”拦截 | ✅ **物理级穿透**：直接读取底层 DOM 树，绕过一切前端限制 |
-| ❌ 账号存在风控、设备绑定异常风险 | ✅ **100% 安全**：只读本地内存，无网络逆向，零封号风险 |
-| ❌ 付费文章需繁琐提取鉴权 Key | ✅ **只要在电脑微信中能看，就能 100% 完整提取** |
+| 依赖网络通信拦截、CA 证书劫持与本地代理配置 | 纯本地进程虚拟内存分析，**不发起网络请求，不劫持流量** |
+| 容易受服务端鉴权、网络抖动及证书配置影响 | 直接面向客户端已呈现的最终渲染状态，保真度高 |
+| 涉及网络层协议伪造与数据交互 | 专注于操作系统层与渲染引擎内存数据的读取研究 |
 
 ---
 
-## ✨ 主要特性
+## ✨ 核心特性
 
-- ⚡ **秒级无损提取**：自动解析层级标题（H1~H4）、正文段落、代码块（`pre/code`）。
-- 📁 **独立输出隔离**：提取结果默认自动统一存放在 `./output/` 独立目录，保持项目根目录整洁。
-- 🖼️ **高清媒体保留**：自动提取微信高清图片原图直链（`mmbiz.qpic.cn`）与动图。
-- 🏷️ **真实元数据回溯**：精准捕获主标题、公众号名称、作者及原文链接，自动清洗底部广告与微信 UI 噪点。
-- 🌍 **全语言支持**：原生支持中文、英文、符号及代码混排。
-- 🔄 **多标签页智能消歧**：按打开时间倒序排列，支持按标题、URL、公众号关键词精准过滤，或一键批量导出所有打开的文章。
-- 🤖 **AI Agent 深度适配**：内置标准 `SKILL.md`，提供 `--list --json` 结构化探测接口，便于与 AutoGen、Claude Code、Cursor、Gemini CLI 等各类 AI Agent 无缝集成。
+- 📄 **结构化文档生成**：自动识别标题层级（H1~H4）、正文段落、表格与代码块（`pre/code`）。
+- 🖼️ **富媒体资源链接提取**：保留文章内嵌高清图片及动图的原始引用地址。
+- 📁 **独立输出隔离**：提取结果默认自动统一存放在独立的 `./output/` 文件夹中，避免污染工作区。
+- 🌍 **多语言与混排支持**：原生支持中文、英文技术术语及代码段的混合解析。
+- 🤖 **遵循 Agent Skills 开放规范**：根目录内置符合 [AgentSkills.io](https://agentskills.io/) 标准的 `SKILL.md`，支持被通用 AI Agent 无缝加载调用。
 
 ---
 
-## 🚀 快速上手
+## 🚀 快速使用
 
 ### 1. 环境准备
 
 确保已安装 Python 3.8+ 及依赖库：
 
 ```bash
-git clone https://github.com/your-username/wechat_article_extract.git
+git clone https://github.com/MARCIALCAO/wechat_article_extract.git
 cd wechat_article_extract
 pip install -r requirements.txt
 ```
 
-### 2. 基本使用
+### 2. 本地运行
 
-在电脑微信中**打开目标文章**（付费文章需已购买并进入阅读界面），然后在终端运行：
+在电脑微信中打开需要整理归档的文章页面，然后在终端执行：
 
-#### 提取最新打开的文章（默认保存至 `./output/` 文件夹）
+#### 提取最新打开的文章（默认保存至 `./output/`）
 ```bash
 python scripts/wechat_article_extract.py
 ```
 
-#### 探测当前打开的所有文章
+#### 探测当前内存中已打开的文章列表
 ```bash
 python scripts/wechat_article_extract.py --list
 ```
 
-#### 按标题、URL 或关键词精准提取
+#### 按标题关键词精准过滤提取
 ```bash
-python scripts/wechat_article_extract.py "口外篇"
-# 或直接传入文章链接
-python scripts/wechat_article_extract.py "https://mp.weixin.qq.com/s/xxxx"
+python scripts/wechat_article_extract.py "关键词"
 ```
 
-#### 一键批量提取所有已打开的文章
+#### 批量导出当前打开的所有文章
 ```bash
 python scripts/wechat_article_extract.py --all
 ```
@@ -83,9 +95,9 @@ python scripts/wechat_article_extract.py --all
 用法: wechat_article_extract.py [-h] [--list] [--all] [--json] [--output-dir OUTPUT_DIR] [target]
 
 参数:
-  target                目标文章 URL、标题、公众号或正文关键词（可选）
-  --list                列出当前微信客户端内存中所有打开的文章
-  --all                 批量提取并保存内存中打开的所有文章
+  target                目标文章URL、标题、公众号或正文关键词（可选）
+  --list                列出当前内存中已渲染打开的有效文章列表
+  --all                 批量解析并保存内存中打开的所有文章
   --json                以 JSON 格式输出扫描结果（面向 AI Agent 结构化调用）
   --output-dir OUTPUT_DIR
                         输出 Markdown 文件目录（默认 ./output/ 文件夹）
@@ -101,30 +113,15 @@ python scripts/wechat_article_extract.py --all
 
 ```mermaid
 flowchart LR
-    A[Agent 探测] -->|--list --json| B[解析文章列表]
-    B --> C{用户意图}
-    C -->|指定文章/URL| D[精准提取: target]
-    C -->|未指定/默认| E[提取最新: 无参数]
-    C -->|批量提取| F[全部导出: --all]
-    D --> G[交付 output/ 目录 Markdown]
+    A[Agent 探测] -->|--list --json| B[解析内存文章列表]
+    B --> C{Agent 判断}
+    C -->|指定关键词| D[精准提取: target]
+    C -->|默认最新| E[提取最新: 无参数]
+    C -->|批量归档| F[全部导出: --all]
+    D --> G[生成 Markdown 至 output/]
     E --> G
     F --> G
 ```
-
-1. **探测阶段**：Agent 调用 `python scripts/wechat_article_extract.py --list --json` 获取结构化上下文。
-2. **执行阶段**：根据用户指令执行提取或消歧，文件默认写入 `./output/`。
-3. **交付阶段**：直接读取生成的 Markdown 交付用户。
-
----
-
-## 📖 技术原理
-
-1. **Chromium 渲染层必然性**：
-   微信内置的浏览器内核（`WeChatAppEx.exe`，Radium 框架）在页面呈现时，必须在内存页（`MEM_COMMIT`）中维护解密后的 UTF-16 DOM 树。
-2. **Win32 内存扫描与边界扩展**：
-   工具调用 Windows 底层 API（`VirtualQueryEx`、`ReadProcessMemory`）扫描提交内存，以 `#js_content`、`#activity-name` 为锚点向前扩展切片，完整捕获 DOM 节点并由 `lxml` 完成 AST 解析与 Markdown 序列化。
-3. **模板过滤与生命周期排序**：
-   自动识别并剔除 Chromium 预加载的空模板（`content_noencode.DATA`），结合进程创建时间戳实现时间倒序排布。
 
 ---
 
@@ -133,9 +130,9 @@ flowchart LR
 ```text
 wechat_article_extract/
 ├── scripts/
-│   └── wechat_article_extract.py # 核心内存提取与解析脚本
-├── SKILL.md                      # AI Agent Skill 规范文件
-├── requirements.txt              # 项目依赖
+│   └── wechat_article_extract.py # 核心内存分析与 Markdown 解析脚本
+├── SKILL.md                      # 遵循 AgentSkills.io 规范的 Agent SOP
+├── requirements.txt              # 项目依赖 (lxml)
 ├── README.md                     # 项目说明文档
 ├── LICENSE                       # MIT 许可证
 └── .gitignore
@@ -143,10 +140,11 @@ wechat_article_extract/
 
 ---
 
-## ⚠️ 免责声明
+## ⚠️ 学术研究与免责声明
 
-* 本工具仅供个人学习、离线阅读备份及技术研究使用。
-* 请尊重原创作者的知识产权与版权，切勿将提取内容用于商业用途或未经授权的二次分发。
+* **技术研究性质**：本项目仅用于探索 Windows 虚拟内存分析及Chromium 渲染引擎内部数据结构的教学与技术研究目的。
+* **合法合规使用**：请使用者严格遵守相关法律法规，仅将本工具用于个人拥有合法访问权限的文章、个人笔记离线整理与学术备份场景。
+* **版权保护**：请尊重所有文章原创作者与出版方的知识产权，严禁将提取内容用于任何商业化目的或侵犯他人合法权益的行为。
 
 ---
 
